@@ -1,6 +1,37 @@
-import WaitlistForm from "../components/WaitlistForm";
+"use client";
+
+import { useState } from "react";
 
 export default function Home() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to join waitlist.");
+
+      setFeedback({ text: data.message, type: "success" });
+      setEmail("");
+    } catch (err: any) {
+      setFeedback({ text: err.message, type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#070913] text-white selection:bg-indigo-500 selection:text-white font-sans antialiased">
       {/* Navigation */}
@@ -46,14 +77,36 @@ export default function Home() {
         </h1>
 
         <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-          Stop paying $49/mo for slow 2-hour delays or hitting 2,000 row limits.
+          Stop paying \$49/mo for slow 2-hour delays or hitting 2,000 row limits.
           Get real-time 5-minute syncs and unlimited databases for a flat{" "}
-          <strong className="text-white font-semibold">$15/mo</strong>.
+          <strong className="text-white font-semibold">\$15/mo</strong>.
         </p>
 
         {/* Embedded Interactive Waitlist Form */}
-        <div id="waitlist">
-          <WaitlistForm />
+        <div id="waitlist" className="w-full max-w-md mx-auto">
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your work email..."
+              required
+              className="flex-1 bg-slate-900 border border-slate-800 text-white placeholder-slate-500 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3.5 rounded-xl text-sm transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {loading ? "Joining..." : "Join Waitlist →"}
+            </button>
+          </form>
+
+          {feedback && (
+            <p className={`mt-3 text-sm text-center ${feedback.type === "error" ? "text-red-400" : "text-green-400"}`}>
+              {feedback.text}
+            </p>
+          )}
         </div>
 
         <p className="text-xs text-slate-500 mt-4 flex items-center justify-center gap-1.5">
