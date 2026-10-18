@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     // Send onboarding welcome email via Resend
     await resend.emails.send({
-      from: "SyncFlow <onboarding@resend.dev>",
+      from: "SyncFlow <hello@usesyncflow.com>",
       to: email,
       subject: "Welcome to SyncFlow Waitlist 🚀",
       html: `<p>Thanks for joining the SyncFlow waitlist!</p>`,
