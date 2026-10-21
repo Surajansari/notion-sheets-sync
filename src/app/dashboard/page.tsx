@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { 
@@ -11,7 +11,6 @@ import {
   Database, 
   FileSpreadsheet,
   Zap,
-  Clock,
   AlertCircle,
   ExternalLink
 } from "lucide-react";
@@ -22,7 +21,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -40,7 +39,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadDashboardData() {
-      // 1. Authenticate user
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
@@ -48,7 +46,6 @@ export default function DashboardPage() {
       }
       setUser(session.user);
 
-      // 2. Fetch active OAuth connections
       const { data: connections } = await supabase
         .from("oauth_connections")
         .select("*")
@@ -59,7 +56,6 @@ export default function DashboardPage() {
         setGoogleConn(connections.find((c) => c.provider === "google"));
       }
 
-      // 3. Fetch sync configurations
       const { data: syncData } = await supabase
         .from("sync_configs")
         .select("*")
@@ -72,7 +68,6 @@ export default function DashboardPage() {
     loadDashboardData();
   }, [router, statusParam]);
 
-  // Handle Manual Sync Execution ("Sync Now")
   const handleSyncNow = async (syncId: string) => {
     setSyncingId(syncId);
     setErrorMessage(null);
@@ -89,7 +84,6 @@ export default function DashboardPage() {
       if (!res.ok) {
         setErrorMessage(data.error || "Sync execution failed");
       } else {
-        // Refresh sync list to reflect updated last_synced_at timestamp
         const { data: updatedSyncs } = await supabase
           .from("sync_configs")
           .select("*")
@@ -194,7 +188,7 @@ export default function DashboardPage() {
         {/* Integrations Status Section */}
         <h2 className="text-sm font-semibold text-slate-300 mb-3">Integrations Status</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-          {/* Notion Workspace Card */}
+          {/* Notion Card */}
           <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
@@ -211,7 +205,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               {notionConn && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-                  Connected
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected
                 </span>
               )}
               <button
@@ -223,7 +217,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Google Workspace Card */}
+          {/* Google Card */}
           <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -240,7 +234,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               {googleConn && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-                  Connected
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected
                 </span>
               )}
               <button
@@ -320,5 +314,19 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 text-indigo-500 animate-spin" />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
