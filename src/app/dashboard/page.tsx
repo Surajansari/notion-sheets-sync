@@ -1,106 +1,81 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { 
+  RefreshCw, 
+  Plus, 
+  CheckCircle2, 
+  LogOut, 
+  Database, 
+  FileSpreadsheet,
+  Zap,
+  Clock,
+  AlertCircle,
+  ExternalLink
+} from "lucide-react";
 
-// Initialize Supabase client safely with fallback placeholders for static evaluation
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize Supabase Client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-interface SyncConfig {
-  id: string;
-  notion_database_id: string;
-  google_spreadsheet_url: string;
-  status: string;
-  last_synced_at: string | null;
-}
-
-interface ConnectionStatus {
-  notion: boolean;
-  google: boolean;
-}
-
-function DashboardContent() {
+export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [syncs, setSyncs] = useState<SyncConfig[]>([]);
-  const [connections, setConnections] = useState<ConnectionStatus>({
-    notion: false,
-    google: false,
-  });
+  
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [syncs, setSyncs] = useState<any[]>([]);
+  const [notionConn, setNotionConn] = useState<any>(null);
+  const [googleConn, setGoogleConn] = useState<any>(null);
+  
   const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  const errorParam = searchParams.get("error");
+  const statusParam = searchParams.get("status");
 
+  useEffect(() => {
+    async function loadDashboardData() {
+      // 1. Authenticate user
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
         return;
       }
+      setUser(session.user);
 
-      const userId = session.user.id;
-
-      // Fetch OAuth connections status
-      const { data: conns } = await supabase
+      // 2. Fetch active OAuth connections
+      const { data: connections } = await supabase
         .from("oauth_connections")
-        .select("provider")
-        .eq("user_id", userId);
+        .select("*")
+        .eq("user_id", session.user.id);
 
-      if (conns) {
-        const hasNotion = conns.some((c) => c.provider === "notion");
-        const hasGoogle = conns.some((c) => c.provider === "google");
-        setConnections({ notion: hasNotion, google: hasGoogle });
+      if (connections) {
+        setNotionConn(connections.find((c) => c.provider === "notion"));
+        setGoogleConn(connections.find((c) => c.provider === "google"));
       }
 
-      // Fetch user sync configurations
-      const { data: syncConfigs } = await supabase
+      // 3. Fetch sync configurations
+      const { data: syncData } = await supabase
         .from("sync_configs")
         .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .eq("user_id", session.user.id);
 
-      if (syncConfigs) {
-        setSyncs(syncConfigs);
-      }
-    } catch (error: any) {
-      console.error("Error loading dashboard data:", error);
-    } finally {
+      if (syncData) setSyncs(syncData);
       setLoading(false);
     }
-  }, [router]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    loadDashboardData();
+  }, [router, statusParam]);
 
-  // Display feedback messages from OAuth redirect callbacks
-  useEffect(() => {
-    const successParam = searchParams.get("success");
-    const errorParam = searchParams.get("error");
-
-    if (successParam) {
-      setMessage(`Success: ${successParam}`);
-    } else if (errorParam) {
-      setMessage(`Error: ${errorParam}`);
-    }
-  }, [searchParams]);
-
-  // Trigger manual "Sync Now" operation
+  // Handle Manual Sync Execution ("Sync Now")
   const handleSyncNow = async (syncId: string) => {
     setSyncingId(syncId);
-    setMessage(null);
+    setErrorMessage(null);
 
     try {
       const res = await fetch("/api/sync/run", {
@@ -111,204 +86,239 @@ function DashboardContent() {
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setMessage("Sync completed successfully!");
-        fetchData();
+      if (!res.ok) {
+        setErrorMessage(data.error || "Sync execution failed");
       } else {
-        setMessage(`Sync failed: ${data.error || "Unknown error"}`);
+        // Refresh sync list to reflect updated last_synced_at timestamp
+        const { data: updatedSyncs } = await supabase
+          .from("sync_configs")
+          .select("*")
+          .eq("user_id", user.id);
+
+        if (updatedSyncs) setSyncs(updatedSyncs);
       }
     } catch (err: any) {
-      setMessage(`Sync error: ${err.message}`);
+      setErrorMessage(err.message || "Failed to trigger sync");
     } finally {
       setSyncingId(null);
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  const handleNotionConnect = () => {
+    if (!user?.id) return;
+    window.location.href = `/api/auth/notion?user_id=${user.id}`;
+  };
+
+  const handleGoogleConnect = () => {
+    if (!user?.id) return;
+    window.location.href = `/api/auth/google?user_id=${user.id}`;
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500 font-medium">Loading SyncFlow Dashboard...</p>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <RefreshCw className="w-6 h-6 text-indigo-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6 md:p-12">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 pb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">SyncFlow Dashboard</h1>
-            <p className="text-gray-600 text-sm mt-1">
-              Automated 2-way sync between Notion databases and Google Sheets
-            </p>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
+      {/* Navigation Bar */}
+      <nav className="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-lg tracking-tight">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+              <RefreshCw className="w-5 h-5" />
+            </div>
+            <span>Sync<span className="text-indigo-400">Flow</span></span>
           </div>
-          <Link
-            href="/dashboard/new-sync"
-            className="inline-flex items-center justify-center px-4 py-2 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition"
-          >
-            + Create New Sync
-          </Link>
-        </div>
 
-        {/* Message Alert Banner */}
-        {message && (
-          <div className="p-4 rounded-md bg-blue-50 border border-blue-200 text-blue-800 text-sm flex justify-between items-center">
-            <span>{message}</span>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-slate-400 hidden sm:inline-block">{user?.email}</span>
             <button
-              onClick={() => setMessage(null)}
-              className="text-blue-600 hover:text-blue-900 font-bold ml-4"
+              onClick={handleSignOut}
+              className="text-xs font-medium text-slate-400 hover:text-white flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg transition"
             >
-              ✕
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Container */}
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        {/* Error Notification Banner */}
+        {(errorMessage || errorParam) && (
+          <div className="mb-6 p-4 rounded-xl bg-red-950/50 border border-red-500/40 text-red-200 text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+              <span>{errorMessage || decodeURIComponent(errorParam!)}</span>
+            </div>
+            <button
+              onClick={() => {
+                setErrorMessage(null);
+                router.replace("/dashboard");
+              }}
+              className="text-xs text-red-400 hover:text-red-200 underline"
+            >
+              Dismiss
             </button>
           </div>
         )}
 
-        {/* Integrations Connection Section */}
-        <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Integrations Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Notion Integration Card */}
-            <div className="flex items-center justify-between p-4 border rounded-lg border-gray-100 bg-gray-50">
-              <div className="flex items-center space-x-3">
-                <span className="font-semibold text-gray-800">Notion</span>
-                <span
-                  className={`inline-block w-2.5 h-2.5 rounded-full ${
-                    connections.notion ? "bg-green-500" : "bg-red-400"
-                  }`}
-                />
-              </div>
-              {connections.notion ? (
-                <span className="text-xs text-green-700 bg-green-100 px-2.5 py-1 rounded-full font-medium">
-                  Connected
-                </span>
-              ) : (
-                <a
-                  href="/api/auth/notion"
-                  className="text-xs text-white bg-black hover:bg-gray-800 px-3 py-1.5 rounded-md font-medium transition"
-                >
-                  Connect Notion
-                </a>
-              )}
-            </div>
-
-            {/* Google Workspace Integration Card */}
-            <div className="flex items-center justify-between p-4 border rounded-lg border-gray-100 bg-gray-50">
-              <div className="flex items-center space-x-3">
-                <span className="font-semibold text-gray-800">Google Workspace</span>
-                <span
-                  className={`inline-block w-2.5 h-2.5 rounded-full ${
-                    connections.google ? "bg-green-500" : "bg-red-400"
-                  }`}
-                />
-              </div>
-              {connections.google ? (
-                <span className="text-xs text-green-700 bg-green-100 px-2.5 py-1 rounded-full font-medium">
-                  Connected
-                </span>
-              ) : (
-                <a
-                  href="/api/auth/google"
-                  className="text-xs text-white bg-black hover:bg-gray-800 px-3 py-1.5 rounded-md font-medium transition"
-                >
-                  Connect Google
-                </a>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Pipelines List */}
-        <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">Active Sync Pipelines</h2>
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-white">SyncFlow Dashboard</h1>
+            <p className="text-slate-400 text-xs mt-1">
+              Automated 2-way sync between Notion databases and Google Sheets.
+            </p>
           </div>
 
-          {syncs.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p className="mb-4 text-sm">No sync pipelines created yet.</p>
-              <Link
-                href="/dashboard/new-sync"
-                className="inline-block text-xs font-medium bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-              >
-                Setup First Sync
-              </Link>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-600">
-                <thead className="bg-gray-50 text-gray-700 font-medium uppercase text-xs border-b border-gray-100">
-                  <tr>
-                    <th className="py-3.5 px-6">Notion DB ID</th>
-                    <th className="py-3.5 px-6">Google Sheet</th>
-                    <th className="py-3.5 px-6">Status</th>
-                    <th className="py-3.5 px-6">Last Synced</th>
-                    <th className="py-3.5 px-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {syncs.map((sync) => (
-                    <tr key={sync.id} className="hover:bg-gray-50 transition">
-                      <td className="py-4 px-6 font-mono text-xs text-gray-900">
-                        {sync.notion_database_id.slice(0, 8)}...
-                      </td>
-                      <td className="py-4 px-6 max-w-xs truncate text-xs">
-                        <a
-                          href={sync.google_spreadsheet_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {sync.google_spreadsheet_url}
-                        </a>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span
-                          className={`inline-block px-2 py-0.5 text-xs font-semibold rounded ${
-                            sync.status === "active"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {sync.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-xs text-gray-500">
-                        {sync.last_synced_at
-                          ? new Date(sync.last_synced_at).toLocaleString()
-                          : "Never"}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => handleSyncNow(sync.id)}
-                          disabled={syncingId === sync.id}
-                          className="px-3 py-1.5 text-xs font-medium text-black bg-gray-100 hover:bg-gray-200 rounded-md transition disabled:opacity-50"
-                        >
-                          {syncingId === sync.id ? "Syncing..." : "Sync Now"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
-  );
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <p className="text-gray-500 font-medium">Loading SyncFlow Dashboard...</p>
+          <button
+            onClick={() => router.push("/dashboard/new-sync")}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 w-fit"
+          >
+            <Plus className="w-4 h-4" />
+            Create New Sync
+          </button>
         </div>
-      }
-    >
-      <DashboardContent />
-    </Suspense>
+
+        {/* Integrations Status Section */}
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Integrations Status</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+          {/* Notion Workspace Card */}
+          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-white">Notion</h3>
+                <p className="text-xs text-slate-500">
+                  {notionConn ? (notionConn.workspace_name || "Connected") : "Not Connected"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {notionConn && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                  Connected
+                </span>
+              )}
+              <button
+                onClick={handleNotionConnect}
+                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline"
+              >
+                {notionConn ? "Reconnect" : "Connect"}
+              </button>
+            </div>
+          </div>
+
+          {/* Google Workspace Card */}
+          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-white">Google Workspace</h3>
+                <p className="text-xs text-slate-500">
+                  {googleConn ? (googleConn.workspace_name || "Connected") : "Not Connected"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {googleConn && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                  Connected
+                </span>
+              )}
+              <button
+                onClick={handleGoogleConnect}
+                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline"
+              >
+                {googleConn ? "Reconnect" : "Connect"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Sync Pipelines Table */}
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Active Sync Pipelines</h2>
+        {syncs.length === 0 ? (
+          <div className="p-12 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30">
+            <Zap className="w-8 h-8 text-indigo-400 mx-auto mb-3 opacity-60" />
+            <h3 className="font-semibold text-base text-white">No active syncs found</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              Create a new sync pipeline to automate 2-way data flow between Notion and Google Sheets.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/50">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-medium">
+                <tr>
+                  <th className="px-6 py-4">Notion DB ID</th>
+                  <th className="px-6 py-4">Google Sheet</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Last Synced</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {syncs.map((sync) => (
+                  <tr key={sync.id} className="hover:bg-slate-800/30 transition">
+                    <td className="px-6 py-4 font-mono text-slate-300">
+                      {sync.notion_database_id.slice(0, 8)}...
+                    </td>
+                    <td className="px-6 py-4 max-w-xs truncate">
+                      <a
+                        href={sync.google_spreadsheet_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-indigo-400 hover:underline flex items-center gap-1 truncate"
+                      >
+                        {sync.google_spreadsheet_url}
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {sync.status || "active"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-400">
+                      {sync.last_synced_at
+                        ? new Date(sync.last_synced_at).toLocaleString()
+                        : "Never"}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleSyncNow(sync.id)}
+                        disabled={syncingId === sync.id}
+                        className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${syncingId === sync.id ? "animate-spin" : ""}`} />
+                        {syncingId === sync.id ? "Syncing..." : "Sync Now"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
