@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-09-30.acacia" as any,
-});
-
 export async function POST(req: Request) {
   try {
+    const stripeKey = process.env.STRIPE_SECRET_KEY || "sk_test_dummy_key_for_build";
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: "2026-09-30.acacia" as any,
+    });
+
     const { email, userId } = await req.json();
 
     let rawUrl = process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com";
