@@ -1,0 +1,44 @@
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2026-09-30.acacia" as any,
+});
+
+export async function POST(req: Request) {
+  try {
+    const { email, userId } = await req.json();
+
+    let rawUrl = process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com";
+    rawUrl = rawUrl.replace(/\[|\]|\(https?:\/\/[^\)]+\)/g, "").trim();
+    if (!rawUrl.startsWith("http")) rawUrl = "https://usesyncflow.com";
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      customer_email: email,
+      client_reference_id: userId,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "SyncFlow Pro Subscription",
+              description: "Unlimited 2-way sync between Notion and Google Sheets (5-min intervals)",
+            },
+            unit_amount: 1500, // $15.00 / month
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "subscription",
+      success_url: `${rawUrl}/dashboard?status=pro_active`,
+      cancel_url: `${rawUrl}/dashboard?status=checkout_cancelled`,
+    });
+
+    return NextResponse.json({ url: session.url }, { status: 200 });
+  } catch (err: any) {
+    console.error("Stripe Checkout Error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
