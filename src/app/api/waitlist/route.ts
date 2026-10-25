@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
           <h3 style="color: #0f172a; font-size: 18px; margin-top: 24px;">What happens after your 14-day trial?</h3>
           <p style="font-size: 14px; line-height: 1.6; color: #475569;">
-            When your trial concludes, your account will transition to our Free tier (1 active sync pipeline updated every 15 minutes) unless you upgrade to <strong>SyncFlow Pro ($15/mo)</strong>. Rest assured, <strong>none of your configuration, historical logs, or synced data will ever be lost or deleted</strong>.
+            When your trial concludes, your account will transition to our Free tier unless you upgrade to <strong>SyncFlow Pro ($15/mo)</strong>. Rest assured, none of your configuration or data will ever be lost.
           </p>
 
           <div style="margin: 32px 0; text-align: center;">
@@ -66,8 +66,7 @@ export async function POST(req: Request) {
 
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;" />
           <p style="font-size: 12px; color: #94a3b8; text-align: center;">
-            SyncFlow — True 2-Way Notion & Google Sheets Sync<br />
-            If you have any questions, reply directly to this email—our founders read every message.
+            SyncFlow — True 2-Way Notion & Google Sheets Sync
           </p>
         </div>
       `,
