@@ -14,20 +14,11 @@ export async function POST(req: Request) {
     if (!rawUrl.startsWith("http")) rawUrl = "https://usesyncflow.com";
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       customer_email: email,
       client_reference_id: userId,
       line_items: [
         {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "SyncFlow Pro Subscription",
-              description: "Unlimited 2-way sync between Notion and Google Sheets (5-min intervals)",
-            },
-            unit_amount: 1500, // $15.00 / month
-            recurring: { interval: "month" },
-          },
+          price: process.env.STRIPE_PRICE_ID,
           quantity: 1,
         },
       ],
