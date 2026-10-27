@@ -1,32 +1,34 @@
 "use client";
-
 import { useState } from "react";
 
 export default function Home() {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setFeedback(null);
+    setStatus("");
 
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ firstName, lastName, email }),
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to join waitlist");
 
-      if (!res.ok) throw new Error(data.error || "Failed to join waitlist.");
-
-      setFeedback({ text: data.message, type: "success" });
+      setStatus("You're on the list! Check your inbox for your 14-day Pro trial invite.");
+      setFirstName("");
+      setLastName("");
       setEmail("");
     } catch (err: any) {
-      setFeedback({ text: err.message, type: "error" });
+      setStatus(err.message);
     } finally {
       setLoading(false);
     }
@@ -77,36 +79,53 @@ export default function Home() {
         </h1>
 
         <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-          Stop paying \$49/mo for slow 2-hour delays or hitting 2,000 row limits.
+          Stop paying $49/mo for slow 2-hour delays or hitting 2,000 row limits.
           Get real-time 5-minute syncs and unlimited databases for a flat{" "}
-          <strong className="text-white font-semibold">\$15/mo</strong>.
+          <strong className="text-white font-semibold">$15/mo</strong>.
         </p>
 
-        {/* Embedded Interactive Waitlist Form */}
-        <div id="waitlist" className="w-full max-w-md mx-auto">
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+        {/* Embedded Interactive Name & Email Waitlist Form */}
+        <div id="waitlist" className="max-w-md mx-auto">
+          <form onSubmit={handleWaitlistSubmit} className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="First Name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500"
+              />
+              <input
+                type="text"
+                placeholder="Last Name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500"
+              />
+            </div>
             <input
               type="email"
+              placeholder="Enter your work email..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your work email..."
               required
-              className="flex-1 bg-slate-900 border border-slate-800 text-white placeholder-slate-500 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500"
             />
             <button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3.5 rounded-xl text-sm transition disabled:opacity-50 whitespace-nowrap"
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 font-semibold rounded-xl transition shadow-lg shadow-indigo-500/25 cursor-pointer text-sm"
             >
-              {loading ? "Joining..." : "Join Waitlist →"}
+              {loading ? "Joining..." : "Join Waitlist & Get Pro Trial →"}
             </button>
+            {status && (
+              <p className={`text-xs mt-2 ${status.includes("Check your inbox") ? "text-emerald-400" : "text-indigo-400"}`}>
+                {status}
+              </p>
+            )}
           </form>
-
-          {feedback && (
-            <p className={`mt-3 text-sm text-center ${feedback.type === "error" ? "text-red-400" : "text-green-400"}`}>
-              {feedback.text}
-            </p>
-          )}
         </div>
 
         <p className="text-xs text-slate-500 mt-4 flex items-center justify-center gap-1.5">
