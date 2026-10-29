@@ -16,25 +16,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // 1. Send official Supabase invite (or generate magic link)
-    let inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/signup`;
-    
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/signup`;
+
+    // 1. Attempt to invite user via Supabase Auth (ignore if already registered)
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: inviteLink,
     });
 
-    // If user already exists in auth, we can still update waitlist status and resend invite email
-    if (error && !error.message.includes('already been registered')) {
-      throw error;
+    if (inviteError && !inviteError.message.includes('already been registered')) {
+      console.error('Supabase Auth invite error:', inviteError);
     }
 
-    // 2. Update waitlist status to 'invited'
-    await supabaseAdmin
+    // 2. Update waitlist table status and invited_at timestamp
+    const { error: dbError } = await supabaseAdmin
       .from('waitlist')
-      .update({ status: 'invited', invited_at: new Date().toISOString() })
+      .update({ 
+        status: 'invited', 
+        invited_at: new Date().toISOString() 
+      })
       .eq('email', email);
 
-    // 3. Send gorgeous Beta Invite email via Resend
+    if (dbError) {
+      throw new Error(`Database update failed: ${dbError.message}`);
+    }
+
+    // 3. Send Beta Invite email via Resend
     await resend.emails.send({
       from: 'SyncFlow <hello@usesyncflow.com>',
       to: email,
@@ -54,7 +60,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('Invite error:', err);
+    console.error('Invite API error:', err);
     return NextResponse.json({ error: err.message || 'Database error saving new user' }, { status: 400 });
   }
 }
