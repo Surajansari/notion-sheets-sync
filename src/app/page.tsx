@@ -1,184 +1,139 @@
-"use client";
-import { useState } from "react";
+'use client';
 
-export default function Home() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("");
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export default function SignupPage() {
+  const router = useRouter();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setStatus("");
+    setError('');
 
     try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email }),
+      // 1. Sign up user with Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+        },
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to join waitlist");
+      if (authError) throw authError;
 
-      setStatus("You're on the list! Check your inbox for your 14-day Pro trial invite.");
-      setFirstName("");
-      setLastName("");
-      setEmail("");
+      if (data.user) {
+        // 2. Explicitly insert/upsert into profiles table to ensure row exists
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+          status: 'trialing',
+          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+
+      // 3. Redirect to dashboard
+      router.push('/dashboard');
     } catch (err: any) {
-      setStatus(err.message);
+      setError(err.message || 'Database error saving new user');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#070913] text-white selection:bg-indigo-500 selection:text-white font-sans antialiased">
-      {/* Navigation */}
-      <nav className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="bg-indigo-600 p-2 rounded-xl flex items-center justify-center">
-            <svg
-              className="w-5 h-5 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
+    <div className="min-h-screen bg-[#020617] text-[#f8fafc] flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-slate-900/60 border border-slate-800 p-8 rounded-2xl shadow-xl">
+        <h1 className="text-2xl font-bold mb-2">Create your SyncFlow Account</h1>
+        <p className="text-slate-400 text-sm mb-6">Start syncing Notion and Sheets with your 14-day Pro trial</p>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm mb-4">
+            {error}
           </div>
-          <span className="font-bold text-xl tracking-tight">SyncFlow</span>
-        </div>
-        <a
-          href="#waitlist"
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-5 py-2.5 rounded-full transition"
-        >
-          Get Early Access
-        </a>
-      </nav>
+        )}
 
-      {/* Hero Section */}
-      <section className="max-w-4xl mx-auto text-center px-6 pt-16 pb-20">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-medium mb-8">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-          Beta Access Open for First 100 Users
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.15] mb-6">
-          True 2-Way Sync for <br />
-          <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-            Notion & Google Sheets
-          </span>
-        </h1>
-
-        <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-          Stop paying $49/mo for slow 2-hour delays or hitting 2,000 row limits.
-          Get real-time 5-minute syncs and unlimited databases for a flat{" "}
-          <strong className="text-white font-semibold">$15/mo</strong>.
-        </p>
-
-        {/* Embedded Interactive Name & Email Waitlist Form */}
-        <div id="waitlist" className="max-w-md mx-auto">
-          <form onSubmit={handleWaitlistSubmit} className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
-            <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSignup} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">First Name</label>
               <input
                 type="text"
-                placeholder="First Name"
+                required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                required
-                className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500"
+                placeholder="Raa"
               />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
               <input
                 type="text"
-                placeholder="Last Name"
+                required
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                required
-                className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500"
+                placeholder="Ansari"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
             <input
               type="email"
-              placeholder="Enter your work email..."
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500"
+              placeholder="you@example.com"
             />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 font-semibold rounded-xl transition shadow-lg shadow-indigo-500/25 cursor-pointer text-sm"
-            >
-              {loading ? "Joining..." : "Join Waitlist & Get Pro Trial →"}
-            </button>
-            {status && (
-              <p className={`text-xs mt-2 ${status.includes("Check your inbox") ? "text-emerald-400" : "text-indigo-400"}`}>
-                {status}
-              </p>
-            )}
-          </form>
-        </div>
+          </div>
 
-        <p className="text-xs text-slate-500 mt-4 flex items-center justify-center gap-1.5">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-          Lock in lifetime 30% discount at launch. No credit card required.
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Password</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium py-3 rounded-lg transition shadow-lg"
+          >
+            {loading ? 'Creating Account...' : 'Sign Up & Start Trial →'}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-slate-400 mt-6">
+          Already have an account? <a href="/login" className="text-indigo-400 hover:underline">Sign In</a>
         </p>
-      </section>
-
-      {/* How it Works Section */}
-      <section className="max-w-6xl mx-auto px-6 py-16 border-t border-slate-800/60">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">
-            Up and Running in 60 Seconds
-          </h2>
-          <p className="text-slate-400 text-sm">
-            No complex Zapier triggers or missing data logs.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-sm mb-4">
-              1
-            </div>
-            <h3 className="font-semibold text-lg mb-2">Connect Workspaces</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Authenticate your Google Sheets and Notion accounts securely with official 1-click OAuth.
-            </p>
-          </div>
-
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-sm mb-4">
-              2
-            </div>
-            <h3 className="font-semibold text-lg mb-2">Match Your Columns</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Our simple UI automatically suggests mapping your Spreadsheet columns to Notion properties.
-            </p>
-          </div>
-
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-sm mb-4">
-              3
-            </div>
-            <h3 className="font-semibold text-lg mb-2">Auto-Sync on Autopilot</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Edits in Sheets push to Notion, and updates in Notion push back to Sheets every 5 minutes.
-            </p>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
