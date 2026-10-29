@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { sendBetaInviteEmail } from '@/lib/email';
+import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(req: Request) {
   try {
@@ -10,22 +16,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // 1. Generate Supabase invite link / invite user
+    // 1. Send official Supabase invite (or generate magic link)
+    let inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/signup`;
+    
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/signup`,
+      redirectTo: inviteLink,
     });
 
-    if (error) throw error;
+    // If user already exists in auth, we can still update waitlist status and resend invite email
+    if (error && !error.message.includes('already been registered')) {
+      throw error;
+    }
 
-    // 2. Send the gorgeous Beta Invite email via Resend
-    const inviteLink = data?.user?.confirmation_sent_at 
-      ? `${process.env.NEXT_PUBLIC_SITE_URL}/signup` 
-      : `${process.env.NEXT_PUBLIC_SITE_URL}/signup`;
+    // 2. Update waitlist status to 'invited'
+    await supabaseAdmin
+      .from('waitlist')
+      .update({ status: 'invited', invited_at: new Date().toISOString() })
+      .eq('email', email);
 
-    await sendBetaInviteEmail(email, inviteLink);
+    // 3. Send gorgeous Beta Invite email via Resend
+    await resend.emails.send({
+      from: 'SyncFlow <hello@usesyncflow.com>',
+      to: email,
+      subject: '🔥 Your SyncFlow Beta Invite is Here! (Claim Your Pro Trial)',
+      html: `
+        <div style="background-color: #020617; color: #f8fafc; padding: 40px; font-family: Arial, sans-serif; border-radius: 8px;">
+          <h2 style="color: #ffffff; margin-bottom: 20px;">Your Access Has Been Unlocked! 🔒✨</h2>
+          <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">The wait is over. Your spot for the <strong>SyncFlow Beta</strong> is ready.</p>
+          <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">Click the secure button below to set your password, activate your account, and instantly claim your <strong>14-Day Free Pro Trial</strong>:</p>
+          <div style="margin: 30px 0;">
+            <a href="${inviteLink}" style="background: linear-gradient(to right, #6366f1, #4f46e5); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Accept Beta Invite & Start Syncing →</a>
+          </div>
+          <p style="color: #64748b; font-size: 14px; margin-top: 40px;">If you have any questions as you test out your first sync, simply reply directly to this email!</p>
+        </div>
+      `,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error('Invite error:', err);
+    return NextResponse.json({ error: err.message || 'Database error saving new user' }, { status: 400 });
   }
 }
