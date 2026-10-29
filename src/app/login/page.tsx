@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { RefreshCw, ArrowRight, Lock, Mail, User } from "lucide-react";
+import { RefreshCw, ArrowRight, Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
@@ -25,12 +23,6 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              first_name: firstName || "Beta",
-              last_name: lastName || "Tester",
-            },
-          },
         });
         if (error) throw error;
         alert("Account created successfully! Welcome to your 14-day Pro trial.");
@@ -76,37 +68,6 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleAuth} className="space-y-4">
-          {isSignUp && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">First Name</label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="John"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 text-white pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Doe"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 text-white pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
             <div className="relative">
@@ -143,7 +104,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 mt-2 cursor-pointer"
           >
-            {loading ? "Processing..." : isSignUp ? "Sign Up & Start Trial" : "Sign In"}
+            {loading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
