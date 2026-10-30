@@ -18,16 +18,7 @@ export async function POST(req: Request) {
 
     const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/signup`;
 
-    // 1. Attempt to invite user via Supabase Auth (ignore if already registered)
-    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: inviteLink,
-    });
-
-    if (inviteError && !inviteError.message.includes('already been registered')) {
-      console.error('Supabase Auth invite error:', inviteError);
-    }
-
-    // 2. Update waitlist table status and invited_at timestamp
+    // 1. Update waitlist table status to 'invited'
     const { error: dbError } = await supabaseAdmin
       .from('waitlist')
       .update({ 
@@ -37,10 +28,10 @@ export async function POST(req: Request) {
       .eq('email', email);
 
     if (dbError) {
-      throw new Error(`Database update failed: ${dbError.message}`);
+      console.error('Waitlist update error:', dbError.message);
     }
 
-    // 3. Send Beta Invite email via Resend
+    // 2. Send the Beta Invite email via Resend
     await resend.emails.send({
       from: 'SyncFlow <hello@usesyncflow.com>',
       to: email,
@@ -49,7 +40,7 @@ export async function POST(req: Request) {
         <div style="background-color: #020617; color: #f8fafc; padding: 40px; font-family: Arial, sans-serif; border-radius: 8px;">
           <h2 style="color: #ffffff; margin-bottom: 20px;">Your Access Has Been Unlocked! 🔒✨</h2>
           <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">The wait is over. Your spot for the <strong>SyncFlow Beta</strong> is ready.</p>
-          <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">Click the secure button below to set your password, activate your account, and instantly claim your <strong>14-Day Free Pro Trial</strong>:</p>
+          <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">Click the secure button below to create your account, set your password, and instantly claim your <strong>14-Day Free Pro Trial</strong>:</p>
           <div style="margin: 30px 0;">
             <a href="${inviteLink}" style="background: linear-gradient(to right, #6366f1, #4f46e5); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Accept Beta Invite & Start Syncing →</a>
           </div>
@@ -60,7 +51,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('Invite API error:', err);
+    console.error('Admin invite API error:', err);
     return NextResponse.json({ error: err.message || 'Database error saving new user' }, { status: 400 });
   }
 }
