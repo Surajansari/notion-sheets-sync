@@ -11,6 +11,8 @@ const supabase = createClient(
 
 export default function SignupPage() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,10 +24,16 @@ export default function SignupPage() {
     setError('');
 
     try {
-      // 1. Sign up with Supabase Auth (Database trigger automatically creates the profile row)
-      const { error: authError } = await supabase.auth.signUp({
+      // 1. Sign up with Supabase Auth (passing first and last name in metadata)
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+        },
       });
 
       if (authError) throw authError;
@@ -52,6 +60,31 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSignup} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">First Name</label>
+              <input
+                type="text"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 text-white"
+                placeholder="Raa"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
+              <input
+                type="text"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 text-white"
+                placeholder="Ansari"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
             <input
@@ -81,7 +114,7 @@ export default function SignupPage() {
             disabled={loading}
             className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium py-3 rounded-lg transition shadow-lg"
           >
-            {loading ? 'Creating Account...' : 'Sign Up →'}
+            {loading ? 'Creating Account...' : 'Sign Up & Start Trial →'}
           </button>
         </form>
 
