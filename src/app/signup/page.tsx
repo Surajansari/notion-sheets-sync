@@ -22,29 +22,15 @@ export default function SignupPage() {
     setError('');
 
     try {
-      // 1. Sign up user with Supabase Auth
-      const { data, error: authError } = await supabase.auth.signUp({
+      // 1. Sign up with Supabase Auth (Database trigger automatically creates the profile row)
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (authError) throw authError;
 
-      if (data.user) {
-        // 2. Upsert profile directly to guarantee entry in profiles table
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: email,
-          status: 'trialing',
-          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-
-        if (profileError) {
-          console.error('Profile upsert warning:', profileError.message);
-        }
-      }
-
-      // 3. Success! Redirect to dashboard
+      // 2. Success! Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Database error saving new user');
