@@ -101,7 +101,9 @@ export default function NewSyncPage() {
             onChange={(e) => setSelectedDb(e.target.value)}
             className="w-full bg-[#0f172a] border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-slate-200"
           >
-            <option value="">-- Choose Database --</option>
+            <option value="">
+              {loading ? "-- Loading Databases... --" : "-- Choose Database --"}
+            </option>
             {databases.map((db) => (
               <option key={db.id} value={db.id}>
                 {db.title || "Untitled Database"}
