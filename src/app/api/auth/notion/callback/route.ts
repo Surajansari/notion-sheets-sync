@@ -35,7 +35,10 @@ export async function GET(request: Request) {
 
     const clientId = process.env.NOTION_CLIENT_ID!;
     const clientSecret = process.env.NOTION_CLIENT_SECRET!;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/notion/callback`;
+    
+    // Fixed: strip trailing slash so it matches the initiation route exactly
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com").replace(/\/+$/, "");
+    const redirectUri = `${baseUrl}/api/auth/notion/callback`;
 
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
