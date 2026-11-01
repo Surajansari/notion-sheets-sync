@@ -33,7 +33,9 @@ export async function GET(request: Request) {
   }
 
   const clientId = process.env.NOTION_CLIENT_ID;
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com").replace(/\/+\$/, "");
+  
+  // Fixed regex: removed the accidental backslash before $ so trailing slashes are correctly stripped
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com").replace(/\/+$/, "");
   const redirectUri = encodeURIComponent(`${baseUrl}/api/auth/notion/callback`);
 
   if (!clientId) {
