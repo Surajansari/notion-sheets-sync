@@ -1,8 +1,30 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("user_id");
+  let userId = searchParams.get("user_id");
+
+  // If user_id wasn't passed in query params, try getting it from the active Supabase session
+  if (!userId || userId === "undefined" || userId === "null") {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+        },
+      }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      userId = user.id;
+    }
+  }
 
   if (!userId) {
     return NextResponse.redirect(
@@ -11,9 +33,7 @@ export async function GET(request: Request) {
   }
 
   const clientId = process.env.NOTION_CLIENT_ID;
-  
-  // Ensure base app URL is clean of any trailing slash
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com").replace(/\/+$/, "");
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com").replace(/\/+\$/, "");
   const redirectUri = encodeURIComponent(`${baseUrl}/api/auth/notion/callback`);
 
   if (!clientId) {

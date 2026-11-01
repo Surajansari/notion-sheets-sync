@@ -31,17 +31,21 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  // Bypass RLS using service role key for system connection lookups
+  // Bypass RLS safely using service role key for system connection lookups
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
 
-  const { data: connections } = await supabaseAdmin
+  const { data: connections, error: dbError } = await supabaseAdmin
     .from("oauth_connections")
     .select("provider, workspace_name, updated_at")
     .eq("user_id", user.id);
+
+  if (dbError) {
+    console.error("Dashboard connection fetch error:", dbError.message);
+  }
 
   const notionConn = connections?.find((c) => c.provider === "notion");
   const googleConn = connections?.find((c) => c.provider === "google");
