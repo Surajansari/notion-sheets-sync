@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   
-  const cookieStore = cookies();
+  // Await cookies() for Next.js App Router compatibility
+  const cookieStore = await cookies();
   cookieStore.getAll().forEach((cookie) => {
     if (cookie.name.includes("supabase")) {
       cookieStore.delete(cookie.name);
