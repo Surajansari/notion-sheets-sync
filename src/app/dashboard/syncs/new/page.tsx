@@ -40,24 +40,40 @@ export default function NewSyncPage() {
     e.preventDefault();
     setSaving(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (!user) return;
+      if (userError || !user) {
+        alert("Authentication error: Please log in again.");
+        setSaving(false);
+        return;
+      }
 
-    const { error } = await supabase.from("sync_configs").insert({
-      user_id: user.id,
-      name: syncName,
-      notion_database_id: selectedDb,
-      google_spreadsheet_url: spreadsheetUrl,
-      status: "active",
-    });
+      console.log("Inserting sync config for user:", user.id);
 
-    if (!error) {
-      router.push("/dashboard");
-    } else {
-      alert("Error creating sync: " + error.message);
+      const { data, error } = await supabase.from("sync_configs").insert({
+        user_id: user.id,
+        name: syncName,
+        notion_database_id: selectedDb,
+        google_spreadsheet_url: spreadsheetUrl,
+        status: "active",
+      }).select();
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        alert("Error creating sync: " + error.message);
+        setSaving(false);
+      } else {
+        console.log("Successfully created sync config:", data);
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch (err: any) {
+      console.error("Unexpected error during sync creation:", err);
+      alert("Unexpected error: " + (err?.message || err));
       setSaving(false);
     }
   };
@@ -129,7 +145,7 @@ export default function NewSyncPage() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition"
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition disabled:opacity-50"
         >
           {saving ? "Creating Sync..." : "Start Syncing"}
         </button>
