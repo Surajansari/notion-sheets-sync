@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     if (!serviceKey || !supabaseUrl) {
       console.error("CRITICAL: SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL is missing");
       return NextResponse.redirect(
-        new URL(`/dashboard?error=${encodeURIComponent("Missing Supabase Service Key in environment")}`, request.url)
+        new URL(`/dashboard?error=${encodeURIComponent("Missing Supabase Service Key in .env.local")}`, request.url)
       );
     }
 
@@ -35,17 +35,8 @@ export async function GET(request: Request) {
 
     const clientId = process.env.GOOGLE_CLIENT_ID!;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`;
 
-    // Clean raw APP_URL string to prevent any bracket/markdown corruption
-    let rawUrl = process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com";
-    rawUrl = rawUrl.replace(/\[|\]|\(https?:\/\/[^\)]+\)/g, "").trim();
-    if (!rawUrl.startsWith("http")) {
-      rawUrl = "https://usesyncflow.com";
-    }
-
-    const redirectUri = `${rawUrl}/api/auth/google/callback`;
-
-    // Exchange auth code for Google tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -67,7 +58,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch account info
     const userRes = await fetch(
       "https://www.googleapis.com/oauth2/v2/userinfo",
       {
@@ -78,7 +68,6 @@ export async function GET(request: Request) {
 
     console.log("Saving Google token to Supabase for user:", userId);
 
-    // Save or update Google connection in Supabase
     const { error: dbError } = await supabaseAdmin
       .from("oauth_connections")
       .upsert(

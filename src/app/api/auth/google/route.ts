@@ -11,15 +11,7 @@ export async function GET(request: Request) {
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
-
-  // Clean raw APP_URL string to prevent any bracket/markdown corruption
-  let rawUrl = process.env.NEXT_PUBLIC_APP_URL || "https://usesyncflow.com";
-  rawUrl = rawUrl.replace(/\[|\]|\(https?:\/\/[^\)]+\)/g, "").trim();
-  if (!rawUrl.startsWith("http")) {
-    rawUrl = "https://usesyncflow.com";
-  }
-
-  const redirectUri = `${rawUrl}/api/auth/google/callback`;
+  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`;
 
   const scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
