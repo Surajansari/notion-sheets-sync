@@ -77,7 +77,8 @@ export default function DashboardPage() {
 
   const handleUpgrade = async () => {
     try {
-      const res = await fetch("/api/checkout", {
+      // Updated to fetch from /api/stripe/checkout matching your exact file structure
+      const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -85,6 +86,11 @@ export default function DashboardPage() {
           userId: user?.id,
         }),
       });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("API endpoint returned an invalid response (not JSON). Check server environment variables.");
+      }
 
       const data = await res.json();
       if (res.ok && data.url) {
@@ -94,7 +100,7 @@ export default function DashboardPage() {
       }
     } catch (err: any) {
       console.error("Checkout error:", err);
-      alert("Network Error: " + (err.message || "Could not complete request"));
+      alert("Error: " + (err.message || "Could not complete request"));
     }
   };
 
