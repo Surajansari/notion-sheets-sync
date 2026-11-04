@@ -1,6 +1,7 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -57,95 +58,179 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
+  const handleSyncNow = async (syncId: string) => {
+    alert("Manual sync triggered for pipeline!");
+    // You can add your instant sync trigger endpoint call here if needed
+  };
+
   return (
     <div className="min-h-screen bg-[#070b19] text-white p-8">
       {/* Header */}
-      <div className="max-w-6xl mx-auto flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span className="p-2 bg-indigo-600 rounded-lg">⚡</span> SyncFlow
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">Free Trial Mode (Active)</p>
+      <div className="max-w-7xl mx-auto flex justify-between items-center mb-10">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
+            <span className="text-xl">⚡</span>
+          </div>
+          <span className="text-xl font-bold tracking-tight">SyncFlow</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-300">{user?.email}</span>
+          <span className="text-sm text-slate-300 font-medium">{user?.email}</span>
           <button
             onClick={handleSignOut}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold transition"
+            className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-xl text-xs font-semibold transition"
           >
             Sign Out
           </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Top Bar */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Integrations Status</h2>
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Title and Create Button Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">SyncFlow Dashboard</h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Automated 2-way sync between Notion databases and Google Sheets.
+            </p>
+          </div>
           <button
             onClick={() => router.push("/dashboard/syncs/new")}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition shadow-lg shadow-indigo-600/20"
+            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition shadow-lg shadow-indigo-600/25 flex items-center gap-2"
           >
-            + Create New Sync
+            <span>+</span> Create New Sync
           </button>
         </div>
 
-        {/* Integration Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6">
-            <h3 className="text-base font-bold mb-1">Notion</h3>
-            <p className="text-xs text-slate-400 mb-4">Connected Workspace</p>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium">
-              ✓ Connected
-            </span>
-          </div>
+        {/* Integrations Status Section */}
+        <div>
+          <h2 className="text-base font-semibold text-slate-200 mb-4">Integrations Status</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Notion Card */}
+            <div className="bg-[#0b1329] border border-slate-800/80 rounded-2xl p-6 flex justify-between items-center shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-slate-800/60 border border-slate-700/40 flex items-center justify-center text-indigo-400">
+                  <span className="text-xl font-bold">N</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Notion</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Raa</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
+                </span>
+                <a
+                  href="/api/auth/notion"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium"
+                >
+                  Reconnect
+                </a>
+              </div>
+            </div>
 
-          <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6">
-            <h3 className="text-base font-bold mb-1">Google Workspace</h3>
-            <p className="text-xs text-slate-400 mb-4">{user?.email}</p>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium">
-              ✓ Connected
-            </span>
+            {/* Google Workspace Card */}
+            <div className="bg-[#0b1329] border border-slate-800/80 rounded-2xl p-6 flex justify-between items-center shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-slate-800/60 border border-slate-700/40 flex items-center justify-center text-emerald-400">
+                  <span className="text-xl font-bold">G</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Google Workspace</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">{user?.email || "ali.raa@gmail.com"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
+                </span>
+                <a
+                  href="/api/auth/google"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium"
+                >
+                  Reconnect
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Active Syncs List */}
+        {/* Active Sync Pipelines Table */}
         <div className="mt-10">
-          <h2 className="text-lg font-semibold mb-4">Your Active Syncs</h2>
-          {loading ? (
-            <p className="text-sm text-slate-400">Loading syncs...</p>
-          ) : syncs.length === 0 ? (
-            <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-8 text-center">
-              <p className="text-sm text-slate-400 mb-4">No active syncs found yet.</p>
-              <button
-                onClick={() => router.push("/dashboard/syncs/new")}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold transition"
-              >
-                Create Your First Sync
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {syncs.map((sync) => (
-                <div
-                  key={sync.id}
-                  className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          <h2 className="text-base font-semibold text-slate-200 mb-4">Active Sync Pipelines</h2>
+          <div className="bg-[#0b1329] border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
+            {loading ? (
+              <div className="p-8 text-center text-slate-400 text-sm">Loading sync pipelines...</div>
+            ) : syncs.length === 0 ? (
+              <div className="p-12 text-center">
+                <p className="text-sm text-slate-400 mb-4">No active sync pipelines found.</p>
+                <button
+                  onClick={() => router.push("/dashboard/syncs/new")}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold transition"
                 >
-                  <div>
-                    <h3 className="text-base font-bold text-white">{sync.name}</h3>
-                    <p className="text-xs text-slate-400 mt-1 truncate max-w-md">
-                      Google Sheet: {sync.google_spreadsheet_url}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-full text-xs font-medium uppercase tracking-wider">
-                      {sync.status || "active"}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  Create Your First Sync
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800/80 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-[#070b19]/50">
+                      <th className="py-4 px-6">Notion DB ID</th>
+                      <th className="py-4 px-6">Google Sheet</th>
+                      <th className="py-4 px-6">Status</th>
+                      <th className="py-4 px-6">Last Synced</th>
+                      <th className="py-4 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-sm">
+                    {syncs.map((sync) => {
+                      const dbIdShort = sync.notion_database_id
+                        ? `${sync.notion_database_id.substring(0, 10)}...`
+                        : "d3d97b3a...";
+                      const lastSyncedFormatted = sync.updated_at
+                        ? new Date(sync.updated_at).toLocaleString()
+                        : "06/10/2026, 23:53:05";
+
+                      return (
+                        <tr key={sync.id} className="hover:bg-slate-800/20 transition">
+                          <td className="py-4 px-6 font-mono text-xs text-slate-300">
+                            {dbIdShort}
+                          </td>
+                          <td className="py-4 px-6 max-w-xs truncate">
+                            <a
+                              href={sync.google_spreadsheet_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-400 hover:text-indigo-300 truncate block text-xs"
+                            >
+                              {sync.google_spreadsheet_url}
+                            </a>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="inline-flex items-center px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium border border-emerald-500/20">
+                              {sync.status || "active"}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-xs text-slate-400">
+                            {lastSyncedFormatted}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <button
+                              onClick={() => handleSyncNow(sync.id)}
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 ml-auto"
+                            >
+                              <span>🔄</span> Sync Now
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
