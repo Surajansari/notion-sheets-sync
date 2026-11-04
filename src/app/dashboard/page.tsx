@@ -13,6 +13,9 @@ export default function DashboardPage() {
   const [syncs, setSyncs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Trial Banner State (Calculates dynamic days remaining)
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number>(14);
+
   // Connection states
   const [notionConnected, setNotionConnected] = useState(true);
   const [googleConnected, setGoogleConnected] = useState(true);
@@ -35,6 +38,15 @@ export default function DashboardPage() {
         }
 
         setUser(user);
+
+        // Calculate dynamic trial days from user created timestamp (14-day trial)
+        if (user.created_at) {
+          const createdAt = new Date(user.created_at).getTime();
+          const now = new Date().getTime();
+          const daysPassed = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+          const remaining = Math.max(0, 14 - daysPassed);
+          setTrialDaysLeft(remaining);
+        }
 
         const { data: syncConfigs, error } = await supabase
           .from("sync_configs")
@@ -60,6 +72,11 @@ export default function DashboardPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const handleUpgrade = () => {
+    // Direct user to Stripe checkout or pricing page
+    router.push("/checkout");
   };
 
   // Actions for Sync Pipelines
@@ -98,7 +115,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Disconnect integrations
   const handleDisconnectNotion = async () => {
     if (confirm("Are you sure you want to disconnect Notion?")) {
       setNotionConnected(false);
@@ -111,34 +127,77 @@ export default function DashboardPage() {
     }
   };
 
+  // Dynamic Banner Styling based on urgency
+  const getBannerStyle = () => {
+    if (trialDaysLeft <= 2) {
+      return "bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 animate-pulse";
+    }
+    if (trialDaysLeft <= 5) {
+      return "bg-gradient-to-r from-amber-600 via-orange-600 to-red-600";
+    }
+    return "bg-gradient-to-r from-orange-600 via-amber-600 to-purple-800";
+  };
+
   return (
-    <div className="min-h-screen bg-[#070b19] text-white p-8">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto flex justify-between items-center mb-10">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-            <span className="text-xl">⚡</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight">SyncFlow</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-300 font-medium">{user?.email}</span>
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-xl text-xs font-semibold transition flex items-center gap-2"
-          >
-            <span>[→</span> Sign Out
-          </button>
-        </div>
+    <div className="min-h-screen bg-[#070b19] text-white">
+      {/* Dynamic Colorful Trial Banner */}
+      <div
+        className={`${getBannerStyle()} py-2.5 px-4 text-center text-xs font-semibold tracking-wide flex items-center justify-center gap-3 shadow-md transition-all duration-300`}
+      >
+        <span className="flex items-center gap-1.5">
+          <span>🕒</span>
+          <span>
+            Pro Trial Active:{" "}
+            <strong className="underline underline-offset-2">
+              {trialDaysLeft === 0
+                ? "Last Day!"
+                : `${trialDaysLeft} days remaining`}
+            </strong>
+          </span>
+        </span>
+        <button
+          onClick={handleUpgrade}
+          className="bg-white text-slate-900 hover:bg-slate-100 px-3.5 py-1 rounded-full font-bold text-xs shadow transition transform hover:scale-105"
+        >
+          Upgrade to Pro ($15/mo) →
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Title and Create Button Bar */}
+      <div className="p-8 max-w-7xl mx-auto space-y-8">
+        {/* Navigation Header */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
+              <span className="text-xl">⚡</span>
+            </div>
+            <span className="text-xl font-bold tracking-tight">SyncFlow</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleUpgrade}
+              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-500/25 flex items-center gap-1.5"
+            >
+              <span>✨</span> Upgrade to Pro
+            </button>
+            <span className="text-sm text-slate-300 font-medium">
+              {user?.email || "ali.raa@gmail.com"}
+            </span>
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-xl text-xs font-semibold transition flex items-center gap-2"
+            >
+              <span>[→</span> Sign Out
+            </button>
+          </div>
+        </div>
+
+        {/* Title Block with Trial Status Subtitle */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">SyncFlow Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-sm text-slate-400 mt-1">
-              Automated 2-way sync between Notion databases and Google Sheets.
+              Free Trial Mode ({trialDaysLeft} days left before downgrade to 15-min intervals).
             </p>
           </div>
           <button
@@ -316,15 +375,12 @@ export default function DashboardPage() {
                           </td>
                           <td className="py-4 px-6 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {/* Sync Now */}
                               <button
                                 onClick={() => handleSyncNow(sync.id)}
                                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-semibold text-slate-200 transition flex items-center gap-1.5"
                               >
                                 <span>🔄</span> Sync Now
                               </button>
-
-                              {/* Stop / Resume */}
                               <button
                                 onClick={() => handleToggleStatus(sync.id, sync.status || "active")}
                                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
@@ -335,8 +391,6 @@ export default function DashboardPage() {
                               >
                                 {isPaused ? "Resume" : "Stop"}
                               </button>
-
-                              {/* Delete */}
                               <button
                                 onClick={() => handleDeleteSync(sync.id)}
                                 className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition"
