@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const [syncs, setSyncs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Trial Banner State
+  // Trial State
   const [trialDaysLeft, setTrialDaysLeft] = useState<number>(14);
 
   // Connection states
@@ -39,7 +39,6 @@ export default function DashboardPage() {
 
         setUser(user);
 
-        // Reliable Trial Days Calculation (defaults to 14 if unset)
         let remaining = 14;
         if (user.created_at) {
           const createdAt = new Date(user.created_at).getTime();
@@ -77,7 +76,6 @@ export default function DashboardPage() {
 
   const handleUpgrade = async () => {
     try {
-      // Updated to fetch from /api/stripe/checkout matching your exact file structure
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,7 +87,7 @@ export default function DashboardPage() {
 
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("API endpoint returned an invalid response (not JSON). Check server environment variables.");
+        throw new Error("API endpoint returned an invalid response. Check server configuration.");
       }
 
       const data = await res.json();
@@ -139,53 +137,33 @@ export default function DashboardPage() {
     }
   };
 
-  const getBannerStyle = () => {
-    if (trialDaysLeft <= 2) {
-      return "bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 animate-pulse";
-    }
-    if (trialDaysLeft <= 5) {
-      return "bg-gradient-to-r from-amber-600 via-orange-600 to-red-600";
-    }
-    return "bg-gradient-to-r from-orange-600 via-amber-600 to-purple-800";
-  };
-
   return (
     <div className="min-h-screen bg-[#070b19] text-white">
-      {/* Dynamic Colorful Trial Banner */}
-      <div
-        className={`${getBannerStyle()} py-2.5 px-4 text-center text-xs font-semibold tracking-wide flex items-center justify-center gap-3 shadow-md transition-all duration-300`}
-      >
-        <span className="flex items-center gap-1.5">
-          <span>🕒</span>
-          <span>
-            Pro Trial Active:{" "}
-            <strong className="underline underline-offset-2">
-              {trialDaysLeft} days remaining
-            </strong>
-          </span>
-        </span>
+      {/* Clean, Non-Flashy Professional Trial Banner */}
+      <div className="bg-[#0b1329] border-b border-slate-800/80 py-2.5 px-4 text-center text-xs text-slate-300 flex items-center justify-center gap-3">
+        <span>🕒 Pro Trial Active: <strong className="text-white font-medium">{trialDaysLeft} days remaining</strong></span>
         <button
           onClick={handleUpgrade}
-          className="bg-white text-slate-900 hover:bg-slate-100 px-3.5 py-1 rounded-full font-bold text-xs shadow transition transform hover:scale-105"
+          className="text-indigo-400 hover:text-indigo-300 underline font-semibold transition"
         >
           Upgrade to Pro ($15/mo) →
         </button>
       </div>
 
       <div className="p-8 max-w-7xl mx-auto space-y-8">
-        {/* Navigation Header */}
+        {/* Navigation Header with Exact Logo from Screenshot */}
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-              <span className="text-xl">⚡</span>
+          <div className="flex items-center gap-3 bg-[#0b1329] border border-slate-800/80 px-4 py-2 rounded-2xl shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
+              <span className="text-sm">🔄</span>
             </div>
-            <span className="text-xl font-bold tracking-tight">SyncFlow</span>
+            <span className="text-base font-bold tracking-tight text-white">SyncFlow</span>
           </div>
 
           <div className="flex items-center gap-4">
             <button
               onClick={handleUpgrade}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-500/25 flex items-center gap-1.5"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold transition shadow-lg shadow-indigo-600/20 flex items-center gap-1.5"
             >
               <span>✨</span> Upgrade to Pro
             </button>
