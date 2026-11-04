@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const [syncs, setSyncs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Trial Banner State (Calculates dynamic days remaining)
+  // Trial Banner State
   const [trialDaysLeft, setTrialDaysLeft] = useState<number>(14);
 
   // Connection states
@@ -39,14 +39,15 @@ export default function DashboardPage() {
 
         setUser(user);
 
-        // Calculate dynamic trial days from user created timestamp (14-day trial)
+        // Reliable Trial Days Calculation (defaults to 14 if unset)
+        let remaining = 14;
         if (user.created_at) {
           const createdAt = new Date(user.created_at).getTime();
           const now = new Date().getTime();
           const daysPassed = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
-          const remaining = Math.max(0, 14 - daysPassed);
-          setTrialDaysLeft(remaining);
+          remaining = Math.max(1, 14 - daysPassed);
         }
+        setTrialDaysLeft(remaining);
 
         const { data: syncConfigs, error } = await supabase
           .from("sync_configs")
@@ -74,12 +75,29 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
-  const handleUpgrade = () => {
-    // Direct user to Stripe checkout or pricing page
-    router.push("/checkout");
+  const handleUpgrade = async () => {
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user?.email,
+          userId: user?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Failed to initiate checkout: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("An unexpected error occurred.");
+    }
   };
 
-  // Actions for Sync Pipelines
   const handleSyncNow = async (syncId: string) => {
     alert("Manual sync triggered for pipeline!");
   };
@@ -115,19 +133,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDisconnectNotion = async () => {
-    if (confirm("Are you sure you want to disconnect Notion?")) {
-      setNotionConnected(false);
-    }
-  };
-
-  const handleDisconnectGoogle = async () => {
-    if (confirm("Are you sure you want to disconnect Google Workspace?")) {
-      setGoogleConnected(false);
-    }
-  };
-
-  // Dynamic Banner Styling based on urgency
   const getBannerStyle = () => {
     if (trialDaysLeft <= 2) {
       return "bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 animate-pulse";
@@ -149,9 +154,7 @@ export default function DashboardPage() {
           <span>
             Pro Trial Active:{" "}
             <strong className="underline underline-offset-2">
-              {trialDaysLeft === 0
-                ? "Last Day!"
-                : `${trialDaysLeft} days remaining`}
+              {trialDaysLeft} days remaining
             </strong>
           </span>
         </span>
@@ -185,14 +188,14 @@ export default function DashboardPage() {
             </span>
             <button
               onClick={handleSignOut}
-              className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-xl text-xs font-semibold transition flex items-center gap-2"
+              className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-xl text-xs font-semibold transition"
             >
-              <span>[→</span> Sign Out
+              Sign Out
             </button>
           </div>
         </div>
 
-        {/* Title Block with Trial Status Subtitle */}
+        {/* Title Block */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -229,31 +232,20 @@ export default function DashboardPage() {
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium border border-emerald-500/20">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
                     </span>
-                    <a
-                      href="/api/auth/notion"
-                      className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium"
-                    >
+                    <a href="/api/auth/notion" className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium">
                       Reconnect
                     </a>
                     <button
-                      onClick={handleDisconnectNotion}
+                      onClick={() => setNotionConnected(false)}
                       className="px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs font-semibold border border-rose-500/20 transition"
                     >
                       Disconnect
                     </button>
                   </>
                 ) : (
-                  <>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800 text-slate-400 rounded-full text-xs font-medium">
-                      Disconnected
-                    </span>
-                    <a
-                      href="/api/auth/notion"
-                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition"
-                    >
-                      Connect
-                    </a>
-                  </>
+                  <a href="/api/auth/notion" className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition">
+                    Connect
+                  </a>
                 )}
               </div>
             </div>
@@ -275,31 +267,20 @@ export default function DashboardPage() {
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-medium border border-emerald-500/20">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
                     </span>
-                    <a
-                      href="/api/auth/google"
-                      className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium"
-                    >
+                    <a href="/api/auth/google" className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium">
                       Reconnect
                     </a>
                     <button
-                      onClick={handleDisconnectGoogle}
+                      onClick={() => setGoogleConnected(false)}
                       className="px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs font-semibold border border-rose-500/20 transition"
                     >
                       Disconnect
                     </button>
                   </>
                 ) : (
-                  <>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800 text-slate-400 rounded-full text-xs font-medium">
-                      Disconnected
-                    </span>
-                    <a
-                      href="/api/auth/google"
-                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition"
-                    >
-                      Connect
-                    </a>
-                  </>
+                  <a href="/api/auth/google" className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition">
+                    Connect
+                  </a>
                 )}
               </div>
             </div>
@@ -346,55 +327,27 @@ export default function DashboardPage() {
 
                       return (
                         <tr key={sync.id} className="hover:bg-slate-800/20 transition">
-                          <td className="py-4 px-6 font-mono text-xs text-slate-300">
-                            {dbIdShort}
-                          </td>
+                          <td className="py-4 px-6 font-mono text-xs text-slate-300">{dbIdShort}</td>
                           <td className="py-4 px-6 max-w-xs truncate">
-                            <a
-                              href={sync.google_spreadsheet_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-400 hover:text-indigo-300 truncate block text-xs"
-                            >
+                            <a href={sync.google_spreadsheet_url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 truncate block text-xs">
                               {sync.google_spreadsheet_url}
                             </a>
                           </td>
                           <td className="py-4 px-6">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                                isPaused
-                                  ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              }`}
-                            >
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${isPaused ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
                               {sync.status || "active"}
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-xs text-slate-400">
-                            {lastSyncedFormatted}
-                          </td>
+                          <td className="py-4 px-6 text-xs text-slate-400">{lastSyncedFormatted}</td>
                           <td className="py-4 px-6 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => handleSyncNow(sync.id)}
-                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-semibold text-slate-200 transition flex items-center gap-1.5"
-                              >
+                              <button onClick={() => handleSyncNow(sync.id)} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-semibold text-slate-200 transition flex items-center gap-1.5">
                                 <span>🔄</span> Sync Now
                               </button>
-                              <button
-                                onClick={() => handleToggleStatus(sync.id, sync.status || "active")}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                                  isPaused
-                                    ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
-                                    : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20"
-                                }`}
-                              >
+                              <button onClick={() => handleToggleStatus(sync.id, sync.status || "active")} className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${isPaused ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20"}`}>
                                 {isPaused ? "Resume" : "Stop"}
                               </button>
-                              <button
-                                onClick={() => handleDeleteSync(sync.id)}
-                                className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition"
-                              >
+                              <button onClick={() => handleDeleteSync(sync.id)} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition">
                                 Delete
                               </button>
                             </div>

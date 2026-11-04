@@ -21,7 +21,6 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Load remembered credentials on mount
   useEffect(() => {
     const savedEmail = localStorage.getItem("syncflow_remembered_email");
     const savedPassword = localStorage.getItem("syncflow_remembered_password");
@@ -51,7 +50,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Handle "Remember Me" persistence
       if (rememberMe) {
         localStorage.setItem("syncflow_remembered_email", email);
         localStorage.setItem("syncflow_remembered_password", password);
@@ -71,15 +69,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#070b19] text-white flex items-center justify-center p-6">
       <div className="bg-[#0b1329] border border-slate-800/80 rounded-3xl p-8 max-w-md w-full shadow-2xl">
-        {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-indigo-600/30">
             <span className="text-2xl">⚡</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Welcome Back</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Sign in to manage your active 2-way syncs
-          </p>
+          <p className="text-xs text-slate-400 mt-1">Sign in to manage your active 2-way syncs</p>
         </div>
 
         {errorMsg && (
@@ -89,11 +84,8 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSignIn} className="space-y-5">
-          {/* Email Field */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Email Address
-            </label>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Email Address</label>
             <input
               type="email"
               required
@@ -104,11 +96,8 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Password Field with Eye Toggle */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Password
-            </label>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -122,31 +111,25 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition text-sm"
-                aria-label="Toggle password visibility"
               >
                 {showPassword ? "👁️" : "👁️‍🗨️"}
               </button>
             </div>
           </div>
 
-          {/* Remember Me Checkbox */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="rememberMe"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded bg-[#070b19] border-slate-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
+              className="w-4 h-4 rounded bg-[#070b19] border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
-            <label
-              htmlFor="rememberMe"
-              className="text-xs text-slate-300 cursor-pointer select-none"
-            >
+            <label htmlFor="rememberMe" className="text-xs text-slate-300 cursor-pointer select-none">
               Remember my password
             </label>
           </div>
 
-          {/* Sign In Button */}
           <button
             type="submit"
             disabled={loading}
@@ -157,12 +140,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Footer Link */}
         <div className="text-center mt-6 text-xs text-slate-400">
           Don't have an account?{" "}
-          <a href="/signup" className="text-indigo-400 hover:text-indigo-300 font-semibold">
-            Sign Up
-          </a>
+          <a href="/signup" className="text-indigo-400 hover:text-indigo-300 font-semibold">Sign Up</a>
         </div>
       </div>
     </div>
