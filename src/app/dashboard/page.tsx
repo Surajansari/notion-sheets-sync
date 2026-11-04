@@ -87,14 +87,14 @@ export default function DashboardPage() {
       });
 
       const data = await res.json();
-      if (data.url) {
+      if (res.ok && data.url) {
         window.location.href = data.url;
       } else {
-        alert("Failed to initiate checkout: " + (data.error || "Unknown error"));
+        alert("Checkout Error: " + (data.error || "Failed to contact payment gateway"));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Checkout error:", err);
-      alert("An unexpected error occurred.");
+      alert("Network Error: " + (err.message || "Could not complete request"));
     }
   };
 
