@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { email, name } = body;
+    const { email } = body;
 
     if (!email) {
       return NextResponse.json(
@@ -15,28 +15,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json(
-        { error: "Server configuration error: missing Supabase keys." },
-        { status: 500 }
-      );
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Insert into waitlist
     const { data, error } = await supabaseAdmin
       .from("waitlist")
-      .insert([{ email, name: name || "" }])
+      .insert([{ email }])
       .select();
 
     if (error) {
       console.error("Waitlist DB Error:", error);
       
-      // Handle duplicate email (Postgres unique violation error code 23505)
+      // Handle duplicate email (Postgres unique violation 23505)
       if (error.code === "23505") {
         return NextResponse.json(
           { message: "You are already on the waitlist! Welcome back." },
