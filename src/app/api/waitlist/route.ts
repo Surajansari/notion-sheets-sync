@@ -32,7 +32,6 @@ export async function POST(req: Request) {
     if (error) {
       console.error("Waitlist DB Error:", error);
 
-      // Handle duplicate email (Postgres unique violation 23505)
       if (error.code === "23505") {
         return NextResponse.json(
           { message: "You are already on the waitlist! Welcome back." },
@@ -43,10 +42,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 2. Send Automated Welcome Email via Resend
+    // 2. Send Automated Welcome Email via Resend using your verified custom domain
     try {
       await resend.emails.send({
-        from: "SyncFlow <hello@usesyncflow.com>", // Make sure your domain is verified in Resend, or use onboarding@resend.dev for testing
+        from: "SyncFlow <hello@usesyncflow.com>",
         to: [email],
         subject: "You're on the SyncFlow Early Access List! 🚀",
         html: `
@@ -68,7 +67,6 @@ export async function POST(req: Request) {
       });
     } catch (emailErr) {
       console.error("Resend email delivery error:", emailErr);
-      // We still return success since the user was added to the waitlist DB successfully
     }
 
     return NextResponse.json(
