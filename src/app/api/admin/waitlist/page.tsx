@@ -3,7 +3,6 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 
 export default function AdminWaitlistPage() {
   const [authorized, setAuthorized] = useState(false);
@@ -12,15 +11,18 @@ export default function AdminWaitlistPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  useEffect(() => {
+    const isAuth = sessionStorage.getItem("syncflow_admin_auth");
+    if (isAuth === "true") {
+      setAuthorized(true);
+      fetchWaitlist();
+    }
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Set your secure admin password here or via env variable
     if (password === "SyncFlowAdmin2026!") {
+      sessionStorage.setItem("syncflow_admin_auth", "true");
       setAuthorized(true);
       fetchWaitlist();
     } else {
@@ -28,17 +30,27 @@ export default function AdminWaitlistPage() {
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("syncflow_admin_auth");
+    setAuthorized(false);
+    setPassword("");
+  };
+
   const fetchWaitlist = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("waitlist")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error) {
-      setWaitlist(data || []);
+    try {
+      const res = await fetch("/api/admin/waitlist");
+      const data = await res.json();
+      if (res.ok) {
+        setWaitlist(data.waitlist || []);
+      } else {
+        setMsg("Failed to load waitlist: " + data.error);
+      }
+    } catch (err: any) {
+      setMsg("Error fetching waitlist: " + err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleApproveAndInvite = async (email: string) => {
@@ -85,21 +97,39 @@ export default function AdminWaitlistPage() {
   return (
     <div className="min-h-screen bg-[#070b19] text-white p-8">
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+        {/* Header with Logout */}
+        <div className="flex justify-between items-center bg-[#0b1329] border border-slate-800 p-6 rounded-2xl shadow-xl">
           <div>
-            <h1 className="text-2xl font-bold">Waitlist Management</h1>
-            <p className="text-xs text-slate-400">Approve users and dispatch 14-day trial invitation emails.</p>
+            <h1 className="text-2xl font-bold">SyncFlow Admin & Beta Hub</h1>
+            <p className="text-xs text-slate-400 mt-1">Manage waitlist signups and dispatch beta invites in real time.</p>
           </div>
-          <button onClick={fetchWaitlist} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold">
-            Refresh List
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={fetchWaitlist} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold transition">
+              Refresh Data
+            </button>
+            <button onClick={handleLogout} className="px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold transition">
+              Log Out
+            </button>
+          </div>
         </div>
 
         {msg && <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-xl text-xs">{msg}</div>}
 
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-[#0b1329] border border-slate-800 p-6 rounded-2xl shadow-xl">
+            <p className="text-xs text-slate-400 uppercase font-semibold">Total Waitlist Signups</p>
+            <p className="text-3xl font-bold mt-2">{waitlist.length}</p>
+          </div>
+        </div>
+
+        {/* Waitlist Table */}
         <div className="bg-[#0b1329] border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-6">
+          <h2 className="text-base font-semibold text-slate-200 mb-4">Waitlist Queue ({waitlist.length})</h2>
           {loading ? (
             <p className="text-xs text-slate-400">Loading leads...</p>
+          ) : waitlist.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-6">No waitlist entries found.</p>
           ) : (
             <table className="w-full text-left text-xs">
               <thead>
