@@ -1,57 +1,59 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-const resend = new Resend(process.env.RESEND_API_KEY!);
+export const dynamic = "force-dynamic";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
-
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/signup`;
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    // 1. Update waitlist table status to 'invited'
-    const { error: dbError } = await supabaseAdmin
-      .from('waitlist')
-      .update({ 
-        status: 'invited', 
-        invited_at: new Date().toISOString() 
-      })
-      .eq('email', email);
+    // Update waitlist status to approved
+    await supabaseAdmin
+      .from("waitlist")
+      .update({ status: "approved", invited_at: new Date().toISOString() })
+      .eq("email", email);
 
-    if (dbError) {
-      console.error('Waitlist update error:', dbError.message);
-    }
+    const signupUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.usesyncflow.com"}/signup`;
 
-    // 2. Send the Beta Invite email via Resend
+    // Send Invite & Trial Welcome Email via Resend
     await resend.emails.send({
-      from: 'SyncFlow <hello@usesyncflow.com>',
-      to: email,
-      subject: '🔥 Your SyncFlow Beta Invite is Here! (Claim Your Pro Trial)',
+      from: "SyncFlow <hello@usesyncflow.com>",
+      to: [email],
+      subject: "You're in! Claim your SyncFlow 14-Day Pro Trial 🚀",
       html: `
-        <div style="background-color: #020617; color: #f8fafc; padding: 40px; font-family: Arial, sans-serif; border-radius: 8px;">
-          <h2 style="color: #ffffff; margin-bottom: 20px;">Your Access Has Been Unlocked! 🔒✨</h2>
-          <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">The wait is over. Your spot for the <strong>SyncFlow Beta</strong> is ready.</p>
-          <p style="color: #94a3b8; font-size: 16px; line-height: 1.6;">Click the secure button below to create your account, set your password, and instantly claim your <strong>14-Day Free Pro Trial</strong>:</p>
-          <div style="margin: 30px 0;">
-            <a href="${inviteLink}" style="background: linear-gradient(to right, #6366f1, #4f46e5); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Accept Beta Invite & Start Syncing →</a>
+        <div style="font-family: sans-serif; background-color: #070b19; color: #ffffff; padding: 40px; border-radius: 16px;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #0b1329; padding: 32px; border-radius: 12px; border: 1px solid #1e293b;">
+            <h2 style="color: #818cf8; margin-top: 0;">Your Access is Ready!</h2>
+            <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+              Your cohort has been activated. You can now set up your SyncFlow account and instantly unlock your 14-day Pro trial.
+            </p>
+            <div style="margin: 30px 0;">
+              <a href="${signupUrl}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
+                Set Up Your Account & Start Syncing →
+              </a>
+            </div>
+            <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+              If you have any questions while connecting your Notion database or Google Sheet, reply directly to this email.
+            </p>
           </div>
-          <p style="color: #64748b; font-size: 14px; margin-top: 40px;">If you have any questions as you test out your first sync, simply reply directly to this email!</p>
         </div>
       `,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Invite sent successfully" });
   } catch (err: any) {
-    console.error('Admin invite API error:', err);
-    return NextResponse.json({ error: err.message || 'Database error saving new user' }, { status: 400 });
+    console.error("Invite API error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
